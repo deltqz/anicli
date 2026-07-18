@@ -1,6 +1,6 @@
 module anicli
 
-go 1.24.2
+go 1.26.5
 
 require (
 	github.com/anacrolix/torrent v1.61.0
