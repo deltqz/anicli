@@ -52,11 +52,10 @@ type rssChannel struct {
 }
 
 type rssItem struct {
-	Title    string `xml:"title"`
-	Link     string `xml:"link"`
-	InfoHash string `xml:"https://nyaa.si/xmlns/nyaa infoHash"`
-	Size     string `xml:"https://nyaa.si/xmlns/nyaa size"`
-	Seeders  string `xml:"https://nyaa.si/xmlns/nyaa seeders"`
+	Title   string `xml:"title"`
+	Link    string `xml:"link"`
+	Size    string `xml:"https://nyaa.si/xmlns/nyaa size"`
+	Seeders string `xml:"https://nyaa.si/xmlns/nyaa seeders"`
 }
 
 const nyaaBaseURL = "https://nyaa.si"
@@ -82,6 +81,10 @@ func fetchRSS(url string) (string, error) {
 		return "", fmt.Errorf("http get: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("rss feed returned status: %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -248,7 +251,6 @@ func (m model) View() string {
 	case stateFetching:
 		content = fmt.Sprintf("%s Searching Nyaa.si for '%s'...", m.spinner.View(), m.textInput.Value())
 	case stateChoosing:
-		// Full screen view for the list
 		return appStyle.Render(m.list.View())
 	}
 
@@ -280,15 +282,6 @@ var videoExts = map[string]bool{
 	".avi": true, ".webm": true, ".m4v": true,
 }
 
-func nyaaTorrentDownloadURL(viewLink string) string {
-	viewLink = strings.TrimSuffix(viewLink, "/")
-	parts := strings.Split(viewLink, "/")
-	if id := parts[len(parts)-1]; id != "" {
-		return fmt.Sprintf("%s/download/%s.torrent", nyaaBaseURL, id)
-	}
-	return ""
-}
-
 func downloadTorrentFile(url, destPath string) error {
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -316,10 +309,6 @@ func downloadTorrentFile(url, destPath string) error {
 
 	_, err = io.Copy(out, resp.Body)
 	return err
-}
-
-func buildMagnet(infoHash string) string {
-	return fmt.Sprintf("magnet:?xt=urn:btih:%s", strings.ToLower(infoHash))
 }
 
 func openPlayer(streamURL string) {
@@ -359,42 +348,33 @@ func streamTorrent(item *rssItem) error {
 	}
 	defer client.Close()
 
-	var t *torrent.Torrent
-	torrentURL := nyaaTorrentDownloadURL(item.Link)
-	if torrentURL != "" {
-		torrentPath := filepath.Join(tmpDir, "torrent_data.torrent")
-		fmt.Println("📥 Downloading torrent metadata file...")
-		if err := downloadTorrentFile(torrentURL, torrentPath); err == nil {
-			t, err = client.AddTorrentFromFile(torrentPath)
-			if err != nil {
-				log.Printf("⚠️ Could not load torrent file: %v", err)
-				t = nil
-			}
-		}
+	// The Link extracted from the RSS item is ALREADY the exact download URL
+	torrentURL := item.Link
+	if torrentURL == "" {
+		return fmt.Errorf("could not determine the .torrent download URL from link")
 	}
 
-	if t == nil && item.InfoHash != "" {
-		magnet := buildMagnet(item.InfoHash)
-		fmt.Println("🔗 Fetching metadata via magnet link...")
-		t, err = client.AddMagnet(magnet)
-		if err != nil {
-			return fmt.Errorf("add magnet: %w", err)
-		}
+	torrentPath := filepath.Join(tmpDir, "torrent_data.torrent")
+	fmt.Printf("📥 Downloading torrent file from: %s...\n", torrentURL)
+
+	if err := downloadTorrentFile(torrentURL, torrentPath); err != nil {
+		return fmt.Errorf("failed to download .torrent file: %w", err)
 	}
 
-	if t == nil {
-		return fmt.Errorf("no torrent metadata available")
+	t, err := client.AddTorrentFromFile(torrentPath)
+	if err != nil {
+		return fmt.Errorf("failed to load local .torrent file: %w", err)
 	}
 
-	fmt.Print("⏳ Resolving seeds and torrent pieces")
+	fmt.Print("⏳ Reading torrent metadata")
 	select {
 	case <-t.GotInfo():
 		fmt.Println(" done!")
-	case <-time.After(25 * time.Second):
-		return fmt.Errorf("timed out waiting for torrent metadata. Seeders might be offline")
+	case <-time.After(10 * time.Second):
+		return fmt.Errorf("timed out processing local .torrent file")
 	}
 
-	// Pick largest file
+	// Pick largest video file
 	var targetFile *torrent.File
 	for _, f := range t.Files() {
 		ext := strings.ToLower(filepath.Ext(f.Path()))
@@ -404,11 +384,12 @@ func streamTorrent(item *rssItem) error {
 			}
 		}
 	}
+
 	if targetFile == nil {
 		return fmt.Errorf("no playable video file found in the torrent")
 	}
 
-	// OPTIMIZATION 1
+	// High priority for our target file
 	targetFile.SetPriority(torrent.PiecePriorityHigh)
 
 	firstPiece := targetFile.BeginPieceIndex()
@@ -425,7 +406,6 @@ func streamTorrent(item *rssItem) error {
 	t.DownloadAll()
 	t.DisallowDataUpload()
 
-	// OPTIMIZATION 2
 	fmt.Print("🚀 Fast-buffering essential playback indexes")
 	deadline := time.Now().Add(45 * time.Second)
 	buffered := false
