@@ -171,7 +171,7 @@ func fetchRSS(url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("http request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Anicli/2.0 (torrent streaming tool)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -394,7 +394,7 @@ func downloadTorrentFile(url, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("http request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Anicli/2.0 (torrent streaming tool)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0")
 
 	resp, err := client.Do(req)
 	if err != nil {
