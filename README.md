@@ -9,19 +9,20 @@ Watch Nyaa.si torrents from your terminal
 Extract `anicli.exe` to any folder and manually add it to PATH.
 
 ### Linux
+You can easily download, extract and install AniCLI with the following commands:
 ```sh
 curl -LO https://github.com/deltqz/AniCLI/releases/latest/download/anicli-linux-x64.tar.gz
-tar -xzf anicli-linux-x64.tar.gz && rm -rf anicli-linux-x64.tar.gz
-sudo install -m 755 anicli/anicli /usr/local/bin/ && rm -rf anicli
+tar -xzf anicli-linux-x64.tar.gz
+sudo install -m 755 anicli/anicli /usr/local/bin/
+```
+
+Also available via Homebrew:
+```sh
+brew install deltqz/tap/anicli
 ```
 
 ### macOS
-Brew recipe? Maybe one day.
+For arm64 Mac, you can install AniCLI via Homebrew:
 ```sh
-curl -L https://github.com/deltqz/AniCLI/releases/latest/download/anicli-mac-arm64.zip
-unzip anicli-mac-arm64.zip && rm -rf anicli-mac-arm64.zip
-sudo install -m 755 anicli/anicli /usr/local/bin/ && rm -rf anicli
-sudo xattr -d com.apple.quarantine /usr/local/bin/anicli
+brew install deltqz/tap/anicli
 ```
-
-curl -L https://github.com/deltqz/AniCLI/releases/latest/download/anicli-linux-x64.tar.gz | tar -xzf -
