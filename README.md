@@ -7,7 +7,7 @@ Watch Nyaa.si torrents from your terminal
 ## Installation
 ### Windows
 - Just run the latest installer from the [releases page](https://github.com/deltqz/AniCLI/releases). PATH setup is automatic.
-- Alternatively, grab the portable zip and manually the extracted folder to your PATH.
+- Alternatively, grab the portable zip and manually add the extracted folder to your PATH.
 
 ### macOS
 For macOS (ARM64) or Linux (x64), you can install AniCLI via Homebrew:
